@@ -126,10 +126,11 @@ def main():
             elif drag_animation:
                 animate_drag_move(gp.move_history[-1], screen, gp.position, clock)
             legal_moves = gp.get_legal_moves()
-            gp.move_history[-1].is_check = gp.in_check
-            gp.move_history[-1].is_checkmate = gp.checkmate
-            gp.move_history[-1].is_stalemate = gp.stalemate
-            play_sound_effects(gp.move_history[-1])
+            if len(gp.move_history) != 0:
+                gp.move_history[-1].is_check = gp.in_check
+                gp.move_history[-1].is_checkmate = gp.checkmate
+                gp.move_history[-1].is_stalemate = gp.stalemate
+                play_sound_effects(gp.move_history[-1])
             move_made = False
             click_animation = False
             drag_animation = False
