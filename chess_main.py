@@ -105,6 +105,7 @@ def main():
                                     move_made = True
                                 cur_sq = ()
                                 clicks = []
+                                break
                         if (not move_made) and (not is_promotion):
                             if e.type == pg.MOUSEBUTTONDOWN and not drag_animation:
                                 clicks = [cur_sq]
@@ -134,9 +135,9 @@ def main():
 
         #let ai makes a move
         if not game_over and not human_turn:
-            ai_default_setting.expand_promotions_of_moves(legal_moves, gp.position)
+            #ai_default_setting.expand_promotions_of_moves(legal_moves, gp.position)
             if gp.white_turn:
-                AI_move = simple_minimax.Nega_max_find_move(gp, legal_moves)
+                AI_move = one_move_thinker.one_move_thinker_find(gp, legal_moves)
             else:
                 AI_move = simple_minimax.Nega_max_find_move(gp, legal_moves)
 
@@ -172,7 +173,12 @@ def main():
         elif gp.stalemate:
             game_over = True
             draw_end_text(screen, "Draw by stalemate.")
-
+        elif gp.fifty_moves_draw:
+            game_over = True
+            draw_end_text(screen, "Draw by the fifty moves rule.")
+        elif gp.three_rep_draw:
+            game_over = True
+            draw_end_text(screen, "Draw by three repetitions.")
 
         clock.tick(FPS)
         pg.display.flip()

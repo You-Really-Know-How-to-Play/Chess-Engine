@@ -72,7 +72,7 @@ def evaluate_position(gp, legal_moves):
     if gp.checkmate:
         return -WIN if gp.white_turn else WIN
     elif gp.stalemate:
-        return -DRAW if gp.white_turn else DRAW   
+        return -DRAW if gp.white_turn else -DRAW
     
     r_num = len(gp.position)
     c_num = len(gp.position[1])   
@@ -81,5 +81,5 @@ def evaluate_position(gp, legal_moves):
         for c in range(c_num):
             sq = gp.position[r][c]
             if sq != '--':
-                value += (Piece_to_Value[sq] + (1 if sq[0] == 'w' else -1) * Piece_to_positional_value[sq][r][c] * .1)
+                value += (Piece_to_Value[sq] +  (1 if sq[0] == 'w' else -1) * Piece_to_positional_value[sq][r][c] * .1)
     return np.sum(value)

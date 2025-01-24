@@ -1,3 +1,5 @@
+import copy
+
 # define the position of the current game, including the previous moves(or not)
 class GamePosition():
     def __init__(self):
@@ -10,6 +12,7 @@ class GamePosition():
             ['--', '--', '--', '--', '--', '--', '--', '--'],
             ['wP', 'wP', 'wP', 'wP', 'wP', 'wP', 'wP', 'wP'],
             ['wR', 'wN', 'wB', 'wQ', 'wK', 'wB', 'wN', 'wR']]
+
         self.white_turn = True
         self.checkmate = False
         self.stalemate = False
@@ -26,6 +29,11 @@ class GamePosition():
         self.current_castling_rights = CastleRights(True, True, True, True)
         self.castle_rights_log = [CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
                                                self.current_castling_rights.wqs, self.current_castling_rights.bqs)]
+        
+        self.pawn_and_cap_move_counter = [0]
+        self.position_history=[copy.deepcopy(self.position)] 
+        self.fifty_moves_draw = False
+        self.three_rep_draw = False
 
     # change the position using a given normal move(not castling, promotion or en-passant)
     def make_move(self, move):
@@ -68,6 +76,14 @@ class GamePosition():
         self.castle_rights_log.append(CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
                                                self.current_castling_rights.wqs, self.current_castling_rights.bqs))
         
+        #update the fifty move without pawn move or cap log
+        if move.piece_move[1] == 'P' or move.is_cap:
+            self.pawn_and_cap_move_counter.append(0)
+        else:
+            self.pawn_and_cap_move_counter.append(self.pawn_and_cap_move_counter[-1] + 1)
+
+        #update the three rep rule
+        self.position_history.append(copy.deepcopy(self.position))
 
     # undo the last move
     def undo_move(self):
@@ -104,8 +120,13 @@ class GamePosition():
                     self.position[move.end_row][move.end_col - 2] = self.position[move.end_row][move.end_col + 1]
                     self.position[move.end_row][move.end_col + 1] = '--'
 
+            self.pawn_and_cap_move_counter.pop()
+            self.position_history.pop()
+
             self.checkmate = False
             self.stalemate = False
+            self.fifty_moves_draw = False
+            self.three_rep_draw = False
 
     # update the castle rights by a given move
     def update_castle_rights(self, move):
@@ -143,7 +164,7 @@ class GamePosition():
                     self.current_castling_rights.bks = False
 
     # get all legal moves (i.e. considering checks) for current position
-    def get_legal_moves(self):
+    def get_legal_moves(self, expand_promotions = True):
         moves = []
         self.in_check, self.checks, self.pins = self.check_pins_and_checks()
         if self.white_turn:
@@ -154,7 +175,7 @@ class GamePosition():
             king_col = self.black_king_location[1]
         if self.in_check:
             if len(self.checks) == 1:
-                moves = self.get_all_moves()
+                moves = self.get_all_moves(expand_all_promotions = expand_promotions)
                 check = self.checks[0]
                 check_row = check[0]
                 check_col = check[1]
@@ -175,7 +196,10 @@ class GamePosition():
             else:
                 self.get_king_moves(king_row, king_col, moves)
         else:
-            moves = self.get_all_moves()
+            moves = self.get_all_moves(expand_all_promotions = expand_promotions)
+
+
+        #check win and draw
         if len(moves) == 0:
             if self.in_check:
                 self.checkmate = True
@@ -184,23 +208,36 @@ class GamePosition():
         else:
             self.checkmate = False
             self.stalemate = False
-        
+
+        if self.pawn_and_cap_move_counter[-1] >= 50:
+            self.fifty_moves_draw = True
+        same_position_counter = 0
+
+        for pos in self.position_history:
+            if self.position == pos:
+                same_position_counter += 1
+        if same_position_counter >= 3:
+            self.three_rep_draw = True
+
         return moves
     
     # get all possible moves (i.e. without considering checks) for current position
-    def get_all_moves(self):
+    def get_all_moves(self, expand_all_promotions = True):
         moves = []
         for r in range(len(self.position)):
             for c in range(len(self.position[r])):
                 color = self.position[r][c][0]
                 if (color == 'w' and self.white_turn) or (color == 'b' and not self.white_turn):
                     piece = self.position[r][c][1]
-                    self.move_functions[piece](r, c, moves)
+                    if piece != 'P':
+                        self.move_functions[piece](r, c, moves)
+                    else:
+                        self.move_functions[piece](r, c, moves, expand_promotions = expand_all_promotions)
 
         return moves
 
     # given a pawn, generate all possible moves and attend them to the list moves
-    def get_pawn_moves(self, r, c, moves):
+    def get_pawn_moves(self, r, c, moves, expand_promotions = True):
         piece_pinned = False
         pin_dir = ()
         for i in range(len(self.pins) - 1, -1, -1):
@@ -209,28 +246,49 @@ class GamePosition():
                 pin_dir = (self.pins[i][2], self.pins[i][3])
                 self.pins.remove(self.pins[i])
                 break
+        
+        if self.white_turn:
+            ally_color = 'w'
+            enemy_color = 'b'
+            front_dir = -1
+            promotion_row = 0
+            start_row = 6
+        else:
+            ally_color = 'b'
+            enemy_color = 'w'
+            front_dir = 1
+            promotion_row = 7
+            start_row = 1
 
-        if self.white_turn: # white's turn
-            if self.position[r-1][c] == '--': # advance
-                if not piece_pinned or pin_dir == (-1, 0):
-                    moves.append(Move((r, c), (r - 1, c), self.position))
-                    if r == 6 and self.position[r-2][c] == '--':
-                        moves.append(Move((r, c), (r - 2, c), self.position))
-            if c - 1 >= 0: # capture to the left 
-                if self.position[r-1][c-1][0] == 'b':
-                    if not piece_pinned or pin_dir == (-1, -1):
-                        moves.append(Move((r, c), (r - 1, c - 1), self.position))
-                elif (r-1,c-1) == self.en_passant_possible_sq:
-                    self.position[r-1][c-1] = 'wP'
+        if self.position[r + front_dir][c] == '--': # advance
+            if not piece_pinned or pin_dir == (front_dir, 0):
+                if r + front_dir == promotion_row and expand_promotions:
+                    for promotion_piece in ['Q', 'R', 'B', 'N']:
+                        moves.append(Move((r, c), (r + front_dir, c), self.position, promotion_piece = ally_color + promotion_piece))
+                else:
+                    moves.append(Move((r, c), (r + front_dir, c), self.position))
+                if r == start_row and self.position[r + 2 * front_dir][c] == '--':
+                    moves.append(Move((r, c), (r + 2 * front_dir, c), self.position))
+        for cap_dir in [-1, 1]: #capture
+            if 0 <= c + cap_dir <= 7:
+                if self.position[r+front_dir][c+cap_dir][0] == enemy_color:
+                    if not piece_pinned or pin_dir == (front_dir, cap_dir):
+                        if r + front_dir == promotion_row and expand_promotions:
+                            for promotion_piece in ['Q', 'R', 'B', 'N']:
+                                moves.append(Move((r, c), (r + front_dir, c + cap_dir), self.position, promotion_piece = ally_color + promotion_piece))
+                        else:
+                            moves.append(Move((r, c), (r + front_dir, c + cap_dir), self.position))
+                elif (r + front_dir, c + cap_dir) == self.en_passant_possible_sq:
+                    self.position[r+front_dir][c+cap_dir] = ally_color + 'P'
                     self.position[r][c] = '--'
-                    self.position[r][c-1] = '--' 
+                    self.position[r][c+cap_dir] = '--' 
                     in_check, temp1, temp2 = self.check_pins_and_checks()
-                    self.position[r-1][c-1] = '--'
-                    self.position[r][c] = 'wP'
-                    self.position[r][c-1] = 'bP' 
+                    self.position[r+front_dir][c+cap_dir] = '--'
+                    self.position[r][c] = ally_color + 'P'
+                    self.position[r][c+cap_dir] = enemy_color + 'P' 
                     if not in_check:
-                        moves.append(Move((r, c), (r - 1, c - 1), self.position, is_en_passant = True))
-                    
+                        moves.append(Move((r, c), (r + front_dir, c + cap_dir), self.position, is_en_passant = True))
+    '''             
             if c + 1 <= 7: # capture to the right
                 if self.position[r-1][c+1][0] == 'b':
                     if not piece_pinned or pin_dir == (-1, 1):
@@ -281,7 +339,7 @@ class GamePosition():
                     self.position[r][c+1] = 'wP'
                     if not in_check:
                         moves.append(Move((r, c), (r + 1, c + 1), self.position, is_en_passant = True))
-                             
+    '''                                
     # given a rook, generate all possible moves and attend them to the list moves
     def get_rook_moves(self, r, c, moves):
         piece_pinned = False
