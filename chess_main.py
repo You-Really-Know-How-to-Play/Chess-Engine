@@ -1,6 +1,8 @@
 import pygame as pg
-import chess_rule
-
+import game_setup.chess_rule as chess_rule
+from retard_engines import random_moves, one_move_thinker
+from advaced_engines import simple_minimax
+from AI_standard_setting import ai_default_setting
 
 BOARD_WIDTH = BOARD_HEIGHT = 1024
 MOVE_LOG_WIDTH = 250
@@ -39,6 +41,10 @@ def main():
     clock = pg.time.Clock()
     screen.fill((47, 47, 47))
     move_log_font = pg.font.SysFont("Aptos Display", 28, False, False)
+    white_is_human = False
+    black_is_human = False
+
+    #setup the game
     gp = chess_rule.GamePosition()
     legal_moves = gp.get_legal_moves()
     move_made = False
@@ -46,17 +52,21 @@ def main():
     drag_animation = False
     load_images()
     load_sound_effects()
+    draw_game_position(screen, gp, legal_moves, (), move_log_font)
+
+    #run the game
     running =True
     cur_sq = ()
     clicks = []
     game_over = False
     while running:
+        human_turn =  (white_is_human and gp.white_turn) or (black_is_human and not gp.white_turn)
         for e in pg.event.get():
             if e.type == pg.QUIT:
                 running = False   
             # mouse handlers
             elif e.type == pg.MOUSEBUTTONDOWN or e.type == pg.MOUSEBUTTONUP:
-                if e.button == 1 and not game_over:
+                if e.button == 1 and not game_over and human_turn:
                     loc = pg.mouse.get_pos()
                     col = loc[0] // SQUARE_SIZE
                     row = loc[1] // SQUARE_SIZE
@@ -106,6 +116,8 @@ def main():
             elif e.type == pg.KEYDOWN:
                 if e.key == pg.K_LEFT: #undo a move when 'LEFT' is pressed
                     gp.undo_move()
+                    if not white_is_human or not black_is_human:
+                        gp.undo_move()
                     move_made = True
                     click_animation = False
                     drag_animation = False
@@ -119,6 +131,20 @@ def main():
                     click_animation = False
                     drag_animation = False
                     game_over = False
+
+        #let ai makes a move
+        if not game_over and not human_turn:
+            ai_default_setting.expand_promotions_of_moves(legal_moves, gp.position)
+            if gp.white_turn:
+                AI_move = simple_minimax.Nega_max_find_move(gp, legal_moves)
+            else:
+                AI_move = simple_minimax.Nega_max_find_move(gp, legal_moves)
+
+            if AI_move != None:
+                AI_move.check_rep(legal_moves)
+                gp.make_move(AI_move)
+                move_made = True
+                click_animation = True
 
         if move_made:
             if click_animation:
@@ -156,7 +182,9 @@ def main():
 
 #drawing functions of the board:
 #drawing all stationary stuff
-def draw_game_position(screen, gp, legal_moves, active_sq, move_log_font):
+def draw_game_position(screen, gp, legal_moves, active_sq, move_log_font, active_colors = [pg.Color("light sky blue"), pg.Color("dodger blue")]):
+    global active_sq_colors
+    active_sq_colors = active_colors
     draw_board(screen)
     draw_highlighted_squares(screen, gp, active_sq)
     draw_pieces(screen, gp.position)
@@ -164,15 +192,14 @@ def draw_game_position(screen, gp, legal_moves, active_sq, move_log_font):
     draw_move_log(screen, gp, move_log_font)
 
 #drawing the highlighted squares
-def draw_highlighted_squares(screen, gp, active_sq, active_color = [pg.Color("light sky blue"), pg.Color("dodger blue")]):
+def draw_highlighted_squares(screen, gp, active_sq):
     global active_sq_colors
-    active_sq_colors = active_color
     if active_sq != ():
         r, c = active_sq
         if gp.position[r][c][0] == ('w' if gp.white_turn else 'b'):
             s = pg.Surface((SQUARE_SIZE,SQUARE_SIZE))
             #s.set_alpha(200)
-            s.fill(pg.Color(active_color[(r + c) % 2]))
+            s.fill(pg.Color(active_sq_colors[(r + c) % 2]))
             screen.blit(s, (c*SQUARE_SIZE, r*SQUARE_SIZE))
 
     if len(gp.move_history) != 0:

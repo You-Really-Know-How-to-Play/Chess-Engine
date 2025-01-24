@@ -482,7 +482,7 @@ class Move():
                      "e": 4, "f": 5, "g": 6, "h": 7}
     cols_to_files = {i: j for j, i in files_to_cols.items()}
 
-    def __init__(self, start, end, position, is_en_passant = False, is_castle = False):
+    def __init__(self, start, end, position, is_en_passant = False, is_castle = False, promotion_piece = '?'):
         self.start_row = start[0]
         self.start_col = start[1]
         self.end_row = end[0]
@@ -491,7 +491,7 @@ class Move():
         self.piece_caped = position[self.end_row][self.end_col]
         #promotion
         self.is_promotion = (self.piece_move == 'wP' and self.end_row == 0) or (self.piece_move == 'bP' and self.end_row == 7)
-        self.promotion_piece = '?'
+        self.promotion_piece = promotion_piece
         #en-passant
         self.is_en_passant = is_en_passant
         if self.is_en_passant:
