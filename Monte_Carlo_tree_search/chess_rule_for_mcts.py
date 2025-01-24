@@ -275,7 +275,7 @@ class GamePosition():
 
         if return_ids:
             legal_move_ids = []
-            for i in len(moves):
+            for i in range(len(moves)):
                 legal_move_ids.append(move_to_id[(moves[i].start_row, moves[i].start_col, moves[i].end_row, moves[i].end_col, moves[i].promotion_piece[-1])])
             return legal_move_ids
         else:
@@ -612,7 +612,7 @@ class GamePosition():
         return cur_array
     
     def make_move_by_id(self, move_id):
-        start_row, start_col, end_row, end_col, promotionPiece = id_to_move(move_id)
+        start_row, start_col, end_row, end_col, promotionPiece = id_to_move[move_id]
         if promotionPiece != '?':
             if end_row == 0:
                 promotionPiece = 'w' + promotionPiece

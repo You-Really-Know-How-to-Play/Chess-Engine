@@ -41,7 +41,7 @@ def main():
     clock = pg.time.Clock()
     screen.fill((47, 47, 47))
     move_log_font = pg.font.SysFont("Aptos Display", 28, False, False)
-    white_is_human = False
+    white_is_human = True
     black_is_human = False
 
     #setup the game

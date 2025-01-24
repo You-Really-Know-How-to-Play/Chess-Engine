@@ -1,7 +1,7 @@
 import numpy as np
 from game_setup.chess_rule import GamePosition, Move
 
-DEPTH = 4
+DEPTH = 1
 
 Piece_to_Value = {'wK': 0, 'wP': 1, 'wN': 3, 'wB': 3, 'wR': 5, 'wQ': 9,
                   'bK': 0, 'bP': -1, 'bN': -3, 'bB': -3, 'bR': -5, 'bQ': -9, '--' : 0}
